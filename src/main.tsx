@@ -1,7 +1,8 @@
 import { createRoot } from 'react-dom/client'
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { BoardDrawing, format, pieceColor } from './BoardDrawing'
+import { format, pieceColor } from './BoardDrawing'
+import { BoardViewport } from './BoardViewport'
 import { examplePieces, exampleStock, placementKey } from './model'
 import type { Piece, Stock } from './model'
 import { calculate } from './engine'
@@ -31,6 +32,7 @@ function App() {
   const [nextId, setNextId] = useState(4)
   const [result, setResult] = useState(() => compare(exampleStock, examplePieces))
   const [strategy, setStrategy] = useState<Strategy>('area')
+  const [view, setView] = useState<'2d' | '3d'>('2d')
   const [boardIndex, setBoardIndex] = useState(0)
   const [selected, setSelected] = useState('')
   const [editing, setEditing] = useState(false)
@@ -113,7 +115,14 @@ function App() {
 
   function chooseStrategy(next: Strategy) {
     setStrategy(next)
-    setBoardIndex(index => Math.min(index, Math.max(0, plans[next].boards.length - 1)))
+    const nextBoards = plans[next].boards
+    const selectedBoard = selectedPiece ? nextBoards.findIndex(item =>
+      item.placements.some(placement => placementKey(placement) === selected)) : -1
+    if (selectedBoard >= 0) setBoardIndex(selectedBoard)
+    else {
+      setBoardIndex(index => Math.min(index, Math.max(0, nextBoards.length - 1)))
+      setSelected('')
+    }
   }
 
   async function exportActivePlan() {
@@ -195,7 +204,11 @@ function App() {
               </select></label> : <strong>Tablero 1</strong>}
               <span>{format(usedStock.width)} × {format(usedStock.length)} mm</span>
             </header>
-            <BoardDrawing stock={usedStock} board={board} index={boardIndex} selected={selected} onSelect={setSelected} />
+            <div className="view-switch" role="group" aria-label="Visualización del tablero">
+              <button type="button" aria-pressed={view === '2d'} onClick={() => setView('2d')}>Plano 2D</button>
+              <button type="button" aria-pressed={view === '3d'} onClick={() => setView('3d')}>Vista 3D</button>
+            </div>
+            <BoardViewport stock={usedStock} board={board} index={boardIndex} selected={selected} onSelect={setSelected} view={view} />
             <div className="key"><span className="key-piece">Pieza</span><span className="key-offcut">Sobrante</span><span className="key-cut">Ancho de corte</span></div>
             <div className="inspector">
               <label>Pieza del tablero <select value={selectedPiece ? selected : ''} onChange={event => setSelected(event.target.value)}>
@@ -203,7 +216,7 @@ function App() {
                 {board.placements.map(item => <option key={placementKey(item)} value={placementKey(item)}>{item.piece.name} {item.copy}</option>)}
               </select></label>
               {selectedPiece && <p className="piece-data" role="status">
-                <strong>{format(selectedPiece.width)} × {format(selectedPiece.length)} mm</strong>
+                <strong>{selectedPiece.piece.name} {selectedPiece.copy} · {format(selectedPiece.width)} × {format(selectedPiece.length)} mm</strong>
                 <span>{selectedPiece.rotated ? 'Girada 90°' : 'Orientación original'}</span>
                 <span>X {format(selectedPiece.x)} · Y {format(selectedPiece.y)} mm</span>
               </p>}
