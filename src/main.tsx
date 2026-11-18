@@ -1,11 +1,22 @@
 import { createRoot } from 'react-dom/client'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { BoardDrawing, format, pieceColor } from './BoardDrawing'
 import { examplePieces, exampleStock } from './model'
 import type { Piece, Stock } from './model'
 import { calculate } from './engine'
+import type { Strategy } from './engine'
+import { downloadPlan } from './exportPlan'
 import './style.css'
+
+const strategies = [
+  { id: 'area', label: 'Área descendente' },
+  { id: 'side', label: 'Lado mayor descendente' },
+] as const
+
+function compare(stock: Stock, pieces: Piece[]) {
+  return { stock, pieces, plans: { area: calculate(stock, pieces, 'area'), side: calculate(stock, pieces, 'side') } }
+}
 
 function NumberField({ label, value, onChange, min = 0.01, max = 10000, step = 0.01 }: {
   label: string; value: number; onChange: (value: number) => void; min?: number; max?: number; step?: number
@@ -18,7 +29,9 @@ function App() {
   const [stock, setStock] = useState(exampleStock)
   const [pieces, setPieces] = useState(examplePieces)
   const [nextId, setNextId] = useState(4)
-  const [result, setResult] = useState(() => ({ stock: exampleStock, plan: calculate(exampleStock, examplePieces) }))
+  const [result, setResult] = useState(() => compare(exampleStock, examplePieces))
+  const [strategy, setStrategy] = useState<Strategy>('area')
+  const drawings = useRef<HTMLDivElement>(null)
   const [error, setError] = useState('')
   const [dirty, setDirty] = useState(false)
 
@@ -42,7 +55,8 @@ function App() {
     setStock(exampleStock)
     setPieces(examplePieces)
     setNextId(4)
-    setResult({ stock: exampleStock, plan: calculate(exampleStock, examplePieces) })
+    setResult(compare(exampleStock, examplePieces))
+    setStrategy('area')
     setError('')
     setDirty(false)
   }
@@ -55,14 +69,16 @@ function App() {
       return
     }
     setError('')
-    setResult({ stock, plan: calculate(stock, pieces) })
+    setResult(compare(stock, pieces))
     setDirty(false)
   }
 
   const stockField = (field: keyof Stock, label: string, options?: { min?: number; max?: number; step?: number }) =>
     <NumberField label={label} value={stock[field]} onChange={value => editStock(field, value)} {...options} />
 
-  const { plan, stock: usedStock } = result
+  const { plans, stock: usedStock } = result
+  const plan = plans[strategy]
+  const strategyLabel = strategies.find(item => item.id === strategy)!.label
   const pending = new Map<number, { name: string; count: number }>()
   for (const { piece } of plan.unplaced) {
     const previous = pending.get(piece.id)
@@ -99,21 +115,43 @@ function App() {
             <button type="button" className="add" onClick={addPiece} disabled={pieces.length >= 100}>+ Agregar pieza</button>
           </fieldset>
           {error && <p className="alert" role="alert">{error}</p>}
-          <button type="submit" className="primary">Calcular distribución</button>
+          <button type="submit" className="primary">Calcular propuestas</button>
         </form>
         <section className="plans" aria-label="Plano de corte">
-          <div className="plan-heading"><div><h2>Plano de corte</h2><p>Propuesta heurística por área descendente</p></div></div>
-          {dirty && <p className="alert" role="status">Hay cambios sin calcular. El plano muestra el último cálculo.</p>}
-          <div className="metrics" aria-live="polite">
-            <div><strong>{plan.placed}/{plan.total}</strong><span>Piezas ubicadas</span></div>
-            <div><strong>{plan.boards.length}/{usedStock.quantity}</strong><span>Tableros usados</span></div>
-            <div><strong>{format(plan.utilization)} %</strong><span>Aprovechamiento</span></div>
+          <div className="plan-heading"><div><h2>Plano de corte</h2><p>Propuestas heurísticas · {format(usedStock.kerf)} mm de ancho de corte</p></div>
+            <button type="button" className="download" disabled={dirty} onClick={() => {
+              if (drawings.current) downloadPlan(strategy, strategyLabel, usedStock, result.pieces, plan, drawings.current)
+            }}>↓ Descargar plano imprimible</button>
           </div>
+          {dirty && <p className="alert" role="status">Hay cambios sin calcular. Calcula las propuestas para descargar el plano actualizado.</p>}
+          <fieldset className="comparison"><legend>Elegir propuesta</legend>
+            <div className="options">
+              {strategies.map(({ id, label }) => {
+                const option = plans[id]
+                return <label className="option" key={id}>
+                  <span className="option-title"><input type="radio" name="estrategia" value={id} checked={id === strategy} onChange={() => setStrategy(id)} />{label}</span>
+                  <span className="metrics">
+                    <span><strong>{option.placed}/{option.total}</strong><small>Piezas</small></span>
+                    <span><strong>{option.boards.length}/{usedStock.quantity}</strong><small>Tableros</small></span>
+                    <span><strong>{format(option.utilization)} %</strong><small>Aprovechamiento</small></span>
+                  </span>
+                  {option.unplaced.length > 0 && <span className="incomplete">Incompleto · {option.unplaced.length} sin ubicar</span>}
+                </label>
+              })}
+            </div>
+          </fieldset>
           {pending.size > 0 && <div className="alert" role="status"><strong>Plan incompleto</strong><p>Sin ubicar: {[...pending.values()].map(({ name, count }) => `${count} × ${name}`).join(', ')}.</p></div>}
+          {plan.boards.length > 0 && <div className="key"><span className="key-piece">Pieza</span><span className="key-offcut">Sobrante</span><span className="key-cut">Ancho de corte</span></div>}
+          <div ref={drawings}>
           {plan.boards.map((board, index) => <article className="board" key={index}>
             <header><strong>Tablero {index + 1}</strong><span>{format(usedStock.width)} × {format(usedStock.length)} mm</span></header>
             <BoardDrawing stock={usedStock} board={board} index={index} />
+            <details><summary>Piezas del tablero ({board.placements.length})</summary>
+              <ul>{board.placements.map(({ piece, copy, width, length, rotated }) =>
+                <li key={`${piece.id}-${copy}`}>{piece.name} {copy} · {format(width)} × {format(length)} mm{rotated ? ' · girada 90°' : ''}</li>)}</ul>
+            </details>
           </article>)}
+          </div>
         </section>
       </div>
     </main>

@@ -1,6 +1,7 @@
 import type { Board, Piece, Placement, Rect, Stock } from './model'
 
 type Unit = { piece: Piece; copy: number }
+export type Strategy = 'area' | 'side'
 export type Plan = { boards: Board[]; unplaced: Unit[]; placed: number; total: number; utilization: number }
 
 const precision = 100
@@ -61,8 +62,10 @@ function split(board: Board, index: number, width: number, length: number, kerf:
   return { x, y, width, length }
 }
 
-export function calculate(stock: Stock, pieces: readonly Piece[]): Plan {
-  const order = [...pieces].sort((a, b) => area(b) - area(a) || a.id - b.id)
+export function calculate(stock: Stock, pieces: readonly Piece[], strategy: Strategy = 'area'): Plan {
+  const largestSide = (piece: Piece) => Math.max(piece.width, piece.length)
+  const priority = strategy === 'side' ? largestSide : area
+  const order = [...pieces].sort((a, b) => priority(b) - priority(a) || a.id - b.id)
   const units = order.flatMap(piece => Array.from({ length: piece.quantity }, (_, index) => ({ piece, copy: index + 1 })))
   const width = scaled(stock.width)
   const length = scaled(stock.length)
@@ -98,4 +101,3 @@ export function calculate(stock: Stock, pieces: readonly Piece[]): Plan {
     utilization: boards.length ? occupied / (width * length * boards.length) * 100 : 0,
   }
 }
-
