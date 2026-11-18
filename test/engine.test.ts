@@ -63,3 +63,13 @@ test('las piezas, cortes y sobrantes particionan el tablero sin salir ni superpo
   }
 })
 
+
+test('la repisa produce dos planos diferentes y repetibles con las mismas entradas', () => {
+  const byArea = calculate(exampleStock, examplePieces, 'area')
+  const bySide = calculate(exampleStock, examplePieces, 'side')
+  assert.equal(byArea.placed, 6)
+  assert.equal(bySide.placed, 6)
+  const brace = (plan: typeof byArea) => plan.boards[0].placements.find(p => p.piece.name === 'Travesaño')
+  assert.notDeepEqual(brace(byArea), brace(bySide))
+  assert.deepEqual(bySide, calculate(exampleStock, examplePieces, 'side'))
+})
