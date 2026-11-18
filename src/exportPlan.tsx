@@ -1,8 +1,10 @@
-import { format } from './BoardDrawing'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { BoardDrawing, format } from './BoardDrawing'
+import { placementKey } from './model'
 import type { Plan, Strategy } from './engine'
 import type { Piece, Stock } from './model'
 
-export function downloadPlan(strategy: Strategy, label: string, stock: Stock, pieces: Piece[], plan: Plan, drawings: HTMLElement) {
+export function downloadPlan(strategy: Strategy, label: string, stock: Stock, pieces: Piece[], plan: Plan) {
   const printable = document.implementation.createHTMLDocument('Plano de corte')
   printable.documentElement.lang = 'es-CL'
   const meta = printable.createElement('meta')
@@ -17,7 +19,7 @@ export function downloadPlan(strategy: Strategy, label: string, stock: Stock, pi
     svg, li { break-inside: avoid; }
     summary { break-after: avoid; }
     article header { display: flex; gap: 1em; margin-bottom: .5em; }
-    .drawing { display: block; width: 100%; max-height: 150mm; background: #1c303a; font-family: monospace; print-color-adjust: exact; }
+    .drawing { display: block; width: 100%; max-height: 150mm; background: #faf6ee; font-family: monospace; print-color-adjust: exact; }
     table { width: 100%; border-collapse: collapse; }
     th, td { text-align: left; border-bottom: 1px solid #9aabb3; padding: .35em; overflow-wrap: anywhere; }
     tr { break-inside: avoid; }
@@ -60,12 +62,19 @@ export function downloadPlan(strategy: Strategy, label: string, stock: Stock, pi
     add('h2', 'Tableros usados')
     add('p', 'Áreas de color: piezas. Áreas rayadas: sobrantes. Franjas oscuras: ancho de corte.')
   }
-  for (const board of drawings.querySelectorAll('article')) {
-    const copy = printable.importNode(board, true)
-    const details = copy.querySelector('details')
-    if (details) details.open = true
-    printable.body.append(copy)
-  }
+  const template = printable.createElement('template')
+  template.innerHTML = renderToStaticMarkup(<>{plan.boards.map((board, index) =>
+    <article key={index}>
+      <header><strong>Tablero {index + 1}</strong><span>{format(stock.width)} × {format(stock.length)} mm</span></header>
+      <BoardDrawing stock={stock} board={board} index={index} />
+      <details open><summary>Piezas del tablero ({board.placements.length})</summary>
+        <ul>{board.placements.map(item => <li key={placementKey(item)}>
+          {item.piece.name} {item.copy} · {format(item.width)} × {format(item.length)} mm{item.rotated ? ' · girada 90°' : ''}
+        </li>)}</ul>
+      </details>
+    </article>
+  )}</>)
+  printable.body.append(template.content)
 
   const blob = new Blob(['<!doctype html>\n', printable.documentElement.outerHTML], { type: 'text/html;charset=utf-8' })
   const url = URL.createObjectURL(blob)

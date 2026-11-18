@@ -10,3 +10,5 @@ export const examplePieces: Piece[] = [
   { id: 2, name: 'Estante', width: 560, length: 280, quantity: 3, rotate: true },
   { id: 3, name: 'Travesaño', width: 600, length: 100, quantity: 1, rotate: true },
 ]
+
+export const placementKey = ({ piece, copy }: Placement) => `${piece.id}-${copy}`

@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client'
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { BoardDrawing, format, pieceColor } from './BoardDrawing'
-import { examplePieces, exampleStock } from './model'
+import { examplePieces, exampleStock, placementKey } from './model'
 import type { Piece, Stock } from './model'
 import { calculate } from './engine'
 import type { Strategy } from './engine'
@@ -31,7 +31,11 @@ function App() {
   const [nextId, setNextId] = useState(4)
   const [result, setResult] = useState(() => compare(exampleStock, examplePieces))
   const [strategy, setStrategy] = useState<Strategy>('area')
-  const drawings = useRef<HTMLDivElement>(null)
+  const [boardIndex, setBoardIndex] = useState(0)
+  const [selected, setSelected] = useState('')
+  const [editing, setEditing] = useState(false)
+  const [exportError, setExportError] = useState('')
+  const planTitle = useRef<HTMLHeadingElement>(null)
   const [error, setError] = useState('')
   const [dirty, setDirty] = useState(false)
 
@@ -52,11 +56,15 @@ function App() {
   }
 
   function reset() {
+    setEditing(false)
     setStock(exampleStock)
     setPieces(examplePieces)
     setNextId(4)
     setResult(compare(exampleStock, examplePieces))
     setStrategy('area')
+    setBoardIndex(0)
+    setSelected('')
+    setExportError('')
     setError('')
     setDirty(false)
   }
@@ -70,7 +78,14 @@ function App() {
     }
     setError('')
     setResult(compare(stock, pieces))
+    setBoardIndex(0)
+    setSelected('')
+    setExportError('')
     setDirty(false)
+    if (matchMedia('(max-width: 760px)').matches) {
+      setEditing(false)
+      planTitle.current?.focus()
+    }
   }
 
   const stockField = (field: keyof Stock, label: string, options?: { min?: number; max?: number; step?: number }) =>
@@ -85,12 +100,45 @@ function App() {
     pending.set(piece.id, { name: piece.name, count: (previous?.count ?? 0) + 1 })
   }
 
+  const alternative = strategy === 'area' ? 'side' : 'area'
+  const other = plans[alternative]
+  const difference = (value: number) => value > 0 ? `+${format(value)}` : format(value)
+  const board = plan.boards[boardIndex]
+  const selectedPiece = board?.placements.find(piece => placementKey(piece) === selected)
+  const metrics = [
+    { label: 'Tableros usados', value: `${plan.boards.length} de ${usedStock.quantity}`, delta: plan.boards.length - other.boards.length, unit: '' },
+    { label: 'Piezas ubicadas', value: `${plan.placed} de ${plan.total}`, delta: plan.placed - other.placed, unit: '' },
+    { label: 'Aprovechamiento', value: `${format(plan.utilization)} %`, delta: Number((plan.utilization - other.utilization).toFixed(2)), unit: ' pp' },
+  ]
+
+  function chooseStrategy(next: Strategy) {
+    setStrategy(next)
+    setBoardIndex(index => Math.min(index, Math.max(0, plans[next].boards.length - 1)))
+  }
+
+  async function exportActivePlan() {
+    setExportError('')
+    try {
+      const { downloadPlan } = await import('./exportPlan')
+      downloadPlan(strategy, strategyLabel, usedStock, result.pieces, plan)
+    } catch {
+      setExportError('No se pudo descargar el plano. Intenta de nuevo.')
+    }
+  }
+
   return <>
-    <header className="topbar"><div className="brand"><span className="mark" aria-hidden="true">◩</span> Taller de corte</div><button type="button" className="reset" onClick={reset}>Cargar repisa de ejemplo</button></header>
+    <header className="topbar">
+      <div className="brand"><span className="mark" aria-hidden="true">◩</span> Taller de corte</div>
+      <button type="button" onClick={reset}>Cargar repisa de ejemplo</button>
+    </header>
     <main>
-      <div className="intro"><h1>Planificador de cortes</h1><p>Distribuye las piezas de tu mueble y compara el aprovechamiento de los tableros.</p></div>
+      <h1>Planificador de cortes</h1>
       <div className="workspace">
-        <form className="inputs" onSubmit={submit}>
+        <aside className="sidebar" aria-label="Medidas y piezas">
+          <button className="edit-toggle" type="button" aria-expanded={editing} aria-controls="entradas" onClick={() => setEditing(!editing)}>
+            {editing ? '− Ocultar medidas y piezas' : '+ Editar medidas y piezas'}
+          </button>
+        <form id="entradas" className={`inputs${editing ? ' is-editing' : ''}`} onSubmit={submit}>
           <fieldset><legend>Tableros</legend>
             <div className="fields">
               {stockField('width', 'Ancho (mm)')}
@@ -117,41 +165,50 @@ function App() {
           {error && <p className="alert" role="alert">{error}</p>}
           <button type="submit" className="primary">Calcular propuestas</button>
         </form>
-        <section className="plans" aria-label="Plano de corte">
-          <div className="plan-heading"><div><h2>Plano de corte</h2><p>Propuestas heurísticas · {format(usedStock.kerf)} mm de ancho de corte</p></div>
-            <button type="button" className="download" disabled={dirty} onClick={() => {
-              if (drawings.current) downloadPlan(strategy, strategyLabel, usedStock, result.pieces, plan, drawings.current)
-            }}>↓ Descargar plano imprimible</button>
+        </aside>
+        <section className="plans" aria-labelledby="plan-title">
+          <div className="plan-heading">
+            <div><h2 id="plan-title" tabIndex={-1} ref={planTitle}>Plano de corte</h2><p>Propuestas heurísticas · Corte de {format(usedStock.kerf)} mm</p></div>
+            <button type="button" className="download" disabled={dirty} onClick={exportActivePlan}>↓ Descargar plano imprimible</button>
           </div>
-          {dirty && <p className="alert" role="status">Hay cambios sin calcular. Calcula las propuestas para descargar el plano actualizado.</p>}
-          <fieldset className="comparison"><legend>Elegir propuesta</legend>
-            <div className="options">
-              {strategies.map(({ id, label }) => {
-                const option = plans[id]
-                return <label className="option" key={id}>
-                  <span className="option-title"><input type="radio" name="estrategia" value={id} checked={id === strategy} onChange={() => setStrategy(id)} />{label}</span>
-                  <span className="metrics">
-                    <span><strong>{option.placed}/{option.total}</strong><small>Piezas</small></span>
-                    <span><strong>{option.boards.length}/{usedStock.quantity}</strong><small>Tableros</small></span>
-                    <span><strong>{format(option.utilization)} %</strong><small>Aprovechamiento</small></span>
-                  </span>
-                  {option.unplaced.length > 0 && <span className="incomplete">Incompleto · {option.unplaced.length} sin ubicar</span>}
-                </label>
-              })}
-            </div>
+          {exportError && <p className="notice" role="alert">{exportError}</p>}
+          {dirty && <p className="notice" role="status">Hay cambios sin calcular. El plano muestra la última propuesta.</p>}
+          <fieldset className="comparison"><legend>Comparar estrategias</legend>
+            <div className="options">{strategies.map(({ id, label }) =>
+              <label className="option" key={id}><input type="radio" name="estrategia" value={id} checked={id === strategy} onChange={() => chooseStrategy(id)} />{label}</label>
+            )}</div>
           </fieldset>
-          {pending.size > 0 && <div className="alert" role="status"><strong>Plan incompleto</strong><p>Sin ubicar: {[...pending.values()].map(({ name, count }) => `${count} × ${name}`).join(', ')}.</p></div>}
-          {plan.boards.length > 0 && <div className="key"><span className="key-piece">Pieza</span><span className="key-offcut">Sobrante</span><span className="key-cut">Ancho de corte</span></div>}
-          <div ref={drawings}>
-            {plan.boards.map((board, index) => <article className="board" key={index}>
-              <header><strong>Tablero {index + 1}</strong><span>{format(usedStock.width)} × {format(usedStock.length)} mm</span></header>
-              <BoardDrawing stock={usedStock} board={board} index={index} />
-              <details><summary>Piezas del tablero ({board.placements.length})</summary>
-                <ul>{board.placements.map(({ piece, copy, width, length, rotated }) =>
-                  <li key={`${piece.id}-${copy}`}>{piece.name} {copy} · {format(width)} × {format(length)} mm{rotated ? ' · girada 90°' : ''}</li>)}</ul>
-              </details>
-            </article>)}
-          </div>
+          <dl className="metrics" aria-live="polite">
+            {metrics.map(({ label, value, delta, unit }) => <div key={label}>
+              <dt>{label}</dt><dd>{value}</dd><small>{delta === 0 ? 'Sin diferencia' : `${difference(delta)}${unit}`}</small>
+            </div>)}
+          </dl>
+          <p className="compare-context">Diferencias frente a {strategies.find(item => item.id === alternative)!.label.toLowerCase()}. pp = puntos porcentuales.</p>
+          {pending.size > 0 && <details className="notice pending">
+            <summary><strong>Plan incompleto</strong> · {plan.unplaced.length} sin ubicar</summary>
+            <ul>{[...pending].map(([id, { name, count }]) => <li key={id}>{count} × {name}</li>)}</ul>
+          </details>}
+          {board ? <article className="board">
+            <header>
+              {plan.boards.length > 1 ? <label className="board-select">Tablero <select value={boardIndex} onChange={event => { setBoardIndex(Number(event.target.value)); setSelected('') }}>
+                {plan.boards.map((_, index) => <option key={index} value={index}>{index + 1} de {plan.boards.length}</option>)}
+              </select></label> : <strong>Tablero 1</strong>}
+              <span>{format(usedStock.width)} × {format(usedStock.length)} mm</span>
+            </header>
+            <BoardDrawing stock={usedStock} board={board} index={boardIndex} selected={selected} onSelect={setSelected} />
+            <div className="key"><span className="key-piece">Pieza</span><span className="key-offcut">Sobrante</span><span className="key-cut">Ancho de corte</span></div>
+            <div className="inspector">
+              <label>Pieza del tablero <select value={selectedPiece ? selected : ''} onChange={event => setSelected(event.target.value)}>
+                <option value="">Elegir pieza</option>
+                {board.placements.map(item => <option key={placementKey(item)} value={placementKey(item)}>{item.piece.name} {item.copy}</option>)}
+              </select></label>
+              {selectedPiece && <p className="piece-data" role="status">
+                <strong>{format(selectedPiece.width)} × {format(selectedPiece.length)} mm</strong>
+                <span>{selectedPiece.rotated ? 'Girada 90°' : 'Orientación original'}</span>
+                <span>X {format(selectedPiece.x)} · Y {format(selectedPiece.y)} mm</span>
+              </p>}
+            </div>
+          </article> : <p className="empty">No hay tableros usados en esta propuesta. Revisa las piezas sin ubicar y ajusta las medidas o el stock.</p>}
         </section>
       </div>
     </main>
