@@ -102,3 +102,20 @@ input[type=checkbox], input[type=radio] { accent-color: var(--green); width: 1re
   button, .fields input, .name, .rotation, select, .option { min-height: 44px; }
 }
 
+.view-switch { display: flex; gap: .35rem; padding: .42rem .75rem; border-bottom: 1px solid var(--line); background: #f5ede1; }
+.view-switch button, .scene-tools button { min-height: 35px; font-size: .86rem; }
+.view-switch button[aria-pressed=true], .scene-tools button[aria-pressed=true] { color: #fff; border-color: var(--green); background: var(--green); }
+.scene-tools { display: flex; flex-wrap: wrap; gap: .3rem; padding: .42rem .75rem; }
+.scene-tools .separate { margin-inline-start: auto; }
+.scene-canvas, .scene-loading { height: clamp(245px, 43vw, 485px); width: 100%; background: #f8f2e7; }
+.scene-canvas canvas { cursor: grab; }
+.scene-canvas canvas:active { cursor: grabbing; }
+.scene-loading { display: grid; place-content: center; }
+.scene-message, .scene-hint { padding: .4rem .75rem; color: var(--muted); background: #f5ede1; font-size: .8rem; }
+@media (pointer: coarse) {
+  .view-switch button, .scene-tools button { min-height: 44px; min-width: 44px; }
+}
+@media (max-width: 760px) {
+  .options { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); }
+  .option { padding-inline: .45rem; }
+}
