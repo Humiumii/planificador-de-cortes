@@ -1,0 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  color-scheme: dark;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  color: #e5edef;
+  background: #111e26;
+  --panel: #172832;
+  --line: #374e59;
+  --muted: #aec1c8;
+  --yellow: #ebbf6a;
+  --mono: 'IBM Plex Mono', monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { opacity: .5; cursor: default; }
+:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
+h1, h2, p { margin: 0; }
+.topbar { border-bottom: 1px solid var(--line); min-height: 66px; padding: .6rem clamp(1rem, 4vw, 4rem); display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.brand { display: flex; align-items: center; gap: .65rem; font-weight: 700; }
+.mark { color: var(--yellow); font-size: 1.7rem; line-height: 1; }
+.reset, .add, .remove { background: transparent; border: 1px solid var(--line); border-radius: 4px; min-height: 40px; }
+.reset { padding: .4rem .8rem; color: var(--muted); }
+button:hover:not(:disabled) { border-color: var(--yellow); }
+main { max-width: 1500px; margin: auto; padding: 1.75rem clamp(1rem, 4vw, 4rem) 3rem; }
+.intro { margin-bottom: 1.6rem; }
+h1, h2 { font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif; font-weight: 700; }
+h1 { font-size: clamp(2.5rem, 5vw, 4rem); line-height: 1.02; margin-bottom: .5rem; }
+p { color: var(--muted); line-height: 1.45; }
+.workspace { display: grid; grid-template-columns: minmax(270px, 340px) minmax(0, 1fr); gap: clamp(1rem, 2.6vw, 2.4rem); align-items: start; }
+.inputs { display: grid; gap: .8rem; min-width: 0; }
+fieldset { min-inline-size: 0; padding: .8rem; margin: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+legend { padding: 0 .35rem; font-weight: 700; }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; }
+.fields label { font-size: .79rem; color: var(--muted); display: grid; align-content: start; gap: .25rem; }
+.fields input, .name { min-width: 0; width: 100%; background: #101c24; border: 1px solid #57727e; border-radius: 4px; min-height: 40px; padding: .35rem .5rem; }
+.fields input { font: 1rem var(--mono); }
+input:user-invalid { border-color: #f2a78f; }
+.piece { border-bottom: 1px solid var(--line); padding-bottom: .45rem; margin-bottom: .65rem; }
+.piece-title { display: flex; align-items: center; gap: .5rem; margin-bottom: .45rem; }
+.swatch { flex: 0 0 .7rem; height: .7rem; border-radius: 2px; }
+.name { font-weight: 600; }
+.remove { flex: 0 0 2.5rem; color: var(--muted); font-size: 1.35rem; }
+.piece-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.rotation { min-height: 40px; display: flex; align-items: center; gap: .4rem; font-size: .85rem; color: var(--muted); }
+input[type=checkbox] { accent-color: var(--yellow); width: 1rem; height: 1rem; }
+.add { width: 100%; color: var(--yellow); }
+.plans { min-width: 0; }
+.plan-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .8rem; margin-bottom: 1rem; }
+h2 { font-size: 2rem; line-height: 1.1; }
+.board { border: 1px solid var(--line); border-radius: 6px; margin-bottom: 1rem; overflow: hidden; background: #13232d; }
+.board header { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding: .75rem 1rem; background: var(--panel); border-bottom: 1px solid var(--line); }
+.board header span { color: var(--muted); font: .82rem var(--mono); }
+.drawing { width: 100%; max-height: 610px; display: block; padding: 1rem; font-family: var(--mono); background: radial-gradient(circle, #38505b 1px, transparent 1px) 0 0 / 18px 18px; }
+@media (max-width: 740px) { .workspace { grid-template-columns: minmax(0, 1fr); } }
+@media (pointer: coarse) { button, .fields input, .name, .rotation { min-height: 48px !important; } }
+
