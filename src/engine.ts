@@ -64,7 +64,8 @@ function split(board: Board, index: number, width: number, length: number, kerf:
 
 export function calculate(stock: Stock, pieces: readonly Piece[], strategy: Strategy = 'area'): Plan {
   const largestSide = (piece: Piece) => Math.max(piece.width, piece.length)
-  const priority = strategy === 'side' ? largestSide : area
+  const priority = strategy === 'side' ? (piece: Piece) => scaled(largestSide(piece))
+    : (piece: Piece) => scaled(piece.width) * scaled(piece.length)
   const order = [...pieces].sort((a, b) => priority(b) - priority(a) || a.id - b.id)
   const units = order.flatMap(piece => Array.from({ length: piece.quantity }, (_, index) => ({ piece, copy: index + 1 })))
   const width = scaled(stock.width)

@@ -12,7 +12,10 @@ export function downloadPlan(strategy: Strategy, label: string, stock: Stock, pi
   style.textContent = `
     @page { size: A4; margin: 14mm; }
     body { color: #14252d; font: 15px system-ui, sans-serif; margin: 24px auto; padding: 0 12px; max-width: 850px; }
-    article { break-inside: avoid; margin: 20px 0; }
+    article { margin: 20px 0; }
+    article header { break-after: avoid; }
+    svg, li { break-inside: avoid; }
+    summary { break-after: avoid; }
     article header { display: flex; gap: 1em; margin-bottom: .5em; }
     .drawing { display: block; width: 100%; max-height: 150mm; background: #1c303a; font-family: monospace; print-color-adjust: exact; }
     table { width: 100%; border-collapse: collapse; }
@@ -53,6 +56,10 @@ export function downloadPlan(strategy: Strategy, label: string, stock: Stock, pi
   }
   printable.body.append(table)
 
+  if (plan.boards.length) {
+    add('h2', 'Tableros usados')
+    add('p', 'Áreas de color: piezas. Áreas rayadas: sobrantes. Franjas oscuras: ancho de corte.')
+  }
   for (const board of drawings.querySelectorAll('article')) {
     const copy = printable.importNode(board, true)
     const details = copy.querySelector('details')
@@ -68,4 +75,3 @@ export function downloadPlan(strategy: Strategy, label: string, stock: Stock, pi
   link.click()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
-

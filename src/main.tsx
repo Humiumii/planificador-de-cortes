@@ -143,14 +143,14 @@ function App() {
           {pending.size > 0 && <div className="alert" role="status"><strong>Plan incompleto</strong><p>Sin ubicar: {[...pending.values()].map(({ name, count }) => `${count} × ${name}`).join(', ')}.</p></div>}
           {plan.boards.length > 0 && <div className="key"><span className="key-piece">Pieza</span><span className="key-offcut">Sobrante</span><span className="key-cut">Ancho de corte</span></div>}
           <div ref={drawings}>
-          {plan.boards.map((board, index) => <article className="board" key={index}>
-            <header><strong>Tablero {index + 1}</strong><span>{format(usedStock.width)} × {format(usedStock.length)} mm</span></header>
-            <BoardDrawing stock={usedStock} board={board} index={index} />
-            <details><summary>Piezas del tablero ({board.placements.length})</summary>
-              <ul>{board.placements.map(({ piece, copy, width, length, rotated }) =>
-                <li key={`${piece.id}-${copy}`}>{piece.name} {copy} · {format(width)} × {format(length)} mm{rotated ? ' · girada 90°' : ''}</li>)}</ul>
-            </details>
-          </article>)}
+            {plan.boards.map((board, index) => <article className="board" key={index}>
+              <header><strong>Tablero {index + 1}</strong><span>{format(usedStock.width)} × {format(usedStock.length)} mm</span></header>
+              <BoardDrawing stock={usedStock} board={board} index={index} />
+              <details><summary>Piezas del tablero ({board.placements.length})</summary>
+                <ul>{board.placements.map(({ piece, copy, width, length, rotated }) =>
+                  <li key={`${piece.id}-${copy}`}>{piece.name} {copy} · {format(width)} × {format(length)} mm{rotated ? ' · girada 90°' : ''}</li>)}</ul>
+              </details>
+            </article>)}
           </div>
         </section>
       </div>

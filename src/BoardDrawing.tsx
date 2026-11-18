@@ -31,16 +31,19 @@ export function BoardDrawing({ stock, board, index }: { stock: Stock; board: Boa
     {board.placements.map(({ piece, x, y, width, length, rotated, copy }) => {
       const label = `${piece.name} ${copy}`
       const size = `${format(width)} × ${format(length)}${rotated ? ' ↻' : ''}`
-      const font = Math.min(unit * 15, width / (Math.max(label.length, size.length) * .66 + 1), length / 3.3)
+      const verticalLabel = length > width * 2.5
+      const textWidth = verticalLabel ? length : width
+      const textHeight = verticalLabel ? width : length
+      const font = Math.min(unit * 15, textWidth / (Math.max(label.length, size.length) * .66 + 1), textHeight / 3.3)
+      const labelTransform = `translate(${x + width / 2},${y + length / 2})${verticalLabel ? ' rotate(-90)' : ''}`
       return <g key={`${piece.id}-${copy}`}>
         <title>{label} · {size} mm</title>
         <rect x={x} y={y} width={width} height={length} fill={pieceColor(piece.id)} stroke="#0e1920" strokeWidth={unit * .65} />
-        {font >= unit * 5 && <text x={x + width / 2} y={y + length / 2 - font * .17} fontSize={font} fill="#14252d" textAnchor="middle">
+        {font >= unit * 5 && <text transform={labelTransform} y={-font * .17} fontSize={font} fill="#14252d" textAnchor="middle">
           <tspan fontWeight="700">{label}</tspan>
-          <tspan x={x + width / 2} dy={font * 1.25}>{size}</tspan>
+          <tspan x={0} dy={font * 1.25}>{size}</tspan>
         </text>}
       </g>
     })}
   </svg>
 }
-
