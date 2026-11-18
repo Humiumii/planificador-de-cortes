@@ -10,10 +10,3 @@ export const examplePieces: Piece[] = [
   { id: 2, name: 'Estante', width: 560, length: 280, quantity: 3, rotate: true },
   { id: 3, name: 'Travesaño', width: 600, length: 100, quantity: 1, rotate: true },
 ]
-
-export const exampleBoard: Board = {
-  placements: [[0, 0, 0, 1], [0, 303.2, 0, 2], [1, 606.4, 0, 1], [1, 606.4, 283.2, 2], [1, 606.4, 566.4, 3], [2, 606.4, 849.6, 1]]
-    .map(([i, x, y, copy]) => ({ ...examplePieces[i], x, y, copy, piece: examplePieces[i], rotated: false })),
-  offcuts: [], cuts: [],
-}
-

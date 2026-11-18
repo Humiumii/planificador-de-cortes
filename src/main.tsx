@@ -1,9 +1,10 @@
 import { createRoot } from 'react-dom/client'
 import { useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
+import type { FormEvent } from 'react'
 import { BoardDrawing, format, pieceColor } from './BoardDrawing'
-import { exampleBoard, examplePieces, exampleStock } from './model'
+import { examplePieces, exampleStock } from './model'
 import type { Piece, Stock } from './model'
+import { calculate } from './engine'
 import './style.css'
 
 function NumberField({ label, value, onChange, min = 0.01, max = 10000, step = 0.01 }: {
@@ -17,6 +18,8 @@ function App() {
   const [stock, setStock] = useState(exampleStock)
   const [pieces, setPieces] = useState(examplePieces)
   const [nextId, setNextId] = useState(4)
+  const [result, setResult] = useState(() => ({ stock: exampleStock, plan: calculate(exampleStock, examplePieces) }))
+  const [error, setError] = useState('')
   const [dirty, setDirty] = useState(false)
 
   function editStock(field: keyof Stock, value: number) {
@@ -39,24 +42,32 @@ function App() {
     setStock(exampleStock)
     setPieces(examplePieces)
     setNextId(4)
+    setResult({ stock: exampleStock, plan: calculate(exampleStock, examplePieces) })
+    setError('')
     setDirty(false)
   }
 
   function submit(event: FormEvent) {
     event.preventDefault()
-    setDirty(true)
+    const count = pieces.reduce((total, piece) => total + piece.quantity, 0)
+    if (count < 1 || count > 1000) {
+      setError('Ingresa entre 1 y 1000 piezas en total.')
+      return
+    }
+    setError('')
+    setResult({ stock, plan: calculate(stock, pieces) })
+    setDirty(false)
   }
 
   const stockField = (field: keyof Stock, label: string, options?: { min?: number; max?: number; step?: number }) =>
     <NumberField label={label} value={stock[field]} onChange={value => editStock(field, value)} {...options} />
 
-  const renderPlan = (): ReactNode => <>
-    <div className="plan-heading"><div><h2>Plano de corte</h2><p>Distribución de ejemplo{dirty ? ' · Hay cambios en las entradas' : ''}</p></div></div>
-    <article className="board">
-      <header><strong>Tablero 1</strong><span>{format(exampleStock.width)} × {format(exampleStock.length)} mm</span></header>
-      <BoardDrawing stock={exampleStock} board={exampleBoard} index={0} />
-    </article>
-  </>
+  const { plan, stock: usedStock } = result
+  const pending = new Map<number, { name: string; count: number }>()
+  for (const { piece } of plan.unplaced) {
+    const previous = pending.get(piece.id)
+    pending.set(piece.id, { name: piece.name, count: (previous?.count ?? 0) + 1 })
+  }
 
   return <>
     <header className="topbar"><div className="brand"><span className="mark" aria-hidden="true">◩</span> Taller de corte</div><button type="button" className="reset" onClick={reset}>Cargar repisa de ejemplo</button></header>
@@ -87,12 +98,26 @@ function App() {
             </div>)}
             <button type="button" className="add" onClick={addPiece} disabled={pieces.length >= 100}>+ Agregar pieza</button>
           </fieldset>
+          {error && <p className="alert" role="alert">{error}</p>}
+          <button type="submit" className="primary">Calcular distribución</button>
         </form>
-        <section className="plans" aria-label="Plano de corte">{renderPlan()}</section>
+        <section className="plans" aria-label="Plano de corte">
+          <div className="plan-heading"><div><h2>Plano de corte</h2><p>Propuesta heurística por área descendente</p></div></div>
+          {dirty && <p className="alert" role="status">Hay cambios sin calcular. El plano muestra el último cálculo.</p>}
+          <div className="metrics" aria-live="polite">
+            <div><strong>{plan.placed}/{plan.total}</strong><span>Piezas ubicadas</span></div>
+            <div><strong>{plan.boards.length}/{usedStock.quantity}</strong><span>Tableros usados</span></div>
+            <div><strong>{format(plan.utilization)} %</strong><span>Aprovechamiento</span></div>
+          </div>
+          {pending.size > 0 && <div className="alert" role="status"><strong>Plan incompleto</strong><p>Sin ubicar: {[...pending.values()].map(({ name, count }) => `${count} × ${name}`).join(', ')}.</p></div>}
+          {plan.boards.map((board, index) => <article className="board" key={index}>
+            <header><strong>Tablero {index + 1}</strong><span>{format(usedStock.width)} × {format(usedStock.length)} mm</span></header>
+            <BoardDrawing stock={usedStock} board={board} index={index} />
+          </article>)}
+        </section>
       </div>
     </main>
   </>
 }
 
 createRoot(document.getElementById('root')!).render(<App />)
-

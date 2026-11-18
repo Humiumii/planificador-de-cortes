@@ -56,4 +56,12 @@ h2 { font-size: 2rem; line-height: 1.1; }
 .drawing { width: 100%; max-height: 610px; display: block; padding: 1rem; font-family: var(--mono); background: radial-gradient(circle, #38505b 1px, transparent 1px) 0 0 / 18px 18px; }
 @media (max-width: 740px) { .workspace { grid-template-columns: minmax(0, 1fr); } }
 @media (pointer: coarse) { button, .fields input, .name, .rotation { min-height: 48px !important; } }
+.primary { background: var(--yellow); color: #16242d; border: 1px solid transparent; border-radius: 4px; font-weight: 700; min-height: 48px; padding: .5rem 1rem; }
+.primary:hover { background: #f4ce85; }
+.metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 6px; margin-bottom: 1rem; background: var(--panel); }
+.metrics div { display: grid; gap: .2rem; padding: .7rem clamp(.35rem, 2vw, 1rem); }
+.metrics div + div { border-left: 1px solid var(--line); }
+.metrics strong { font: 500 clamp(.9rem, 3vw, 1.4rem) var(--mono); }
+.metrics span { font-size: .78rem; color: var(--muted); overflow-wrap: anywhere; }
+.alert { border-left: 3px solid var(--yellow); background: var(--panel); padding: .65rem .8rem; margin-bottom: .85rem; overflow-wrap: anywhere; }
 
